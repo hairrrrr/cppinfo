@@ -155,6 +155,10 @@ int main(void)
 
 
 
+### 三 initializer_list
+
+
+
 
 
 ### 其他特性 
@@ -218,4 +222,117 @@ int main(void)
 ```cpp
 typedef decltype(nullptr) nullptr_t
 ```
+
+
+
+#### 4. Uniform Initialization
+
+```cpp
+double d = { 1e9 };
+
+int value[]{ 1, 2, 3 };
+
+vector<int> v{2, 3, 5, 7, 11, 13, 17};
+
+vector<string> cities{
+    "Shanghai", "Xi'an", "New York"
+};
+
+complex<double> c{ 4.0, 3.0 };
+```
+
+我们发现任何数据类型（从内置类型，到 STL 中的自定义类型）都可以用 `{}` 来初始化。这就是初始化一致性。
+
+虽然用法很简单，但是底层实现并没有这么“丝滑”。
+
+```cpp
+int value[]{ 1, 2, 3 };
+```
+
+编译器看到 `{t1, t2, ... tn}` 便做出一个 `initailizer_list<T>` ，它底层用 `array<T,n>`实现。调用函数如`ctor` 时该 `array` 内的元素可被编译器逐一分解传给函数。
+
+```cpp
+// 这个形成 initializer_list<int> 背后有 array<int, 7>
+// vector<int> 找到一个接受 initializer_list<int> ctor 。所有容器都有此 ctor
+vector<int> v{2, 3, 5, 7, 11, 13, 17};
+// 这个行程 initializer_list<string> 背后有 array<string, 3>
+vector<string> cities{
+    "Shanghai", "Xi'an", "New York"
+};
+```
+
+我们再来看下一个：
+
+```cpp
+complex<double> c{ 4.0, 3.0 }; // equivalent to c(4.0, 3.0)
+```
+
+同样的,`initializer_list `后有 `array<double, 2>`  调用 `complex<double> ctor` 时，`array` 内的元素被分解给 `ctor` (`complex<double>` 没有 `ctor` 接受 `initializer_list<double>` )  
+
+```cpp
+int i;   // i has undefined value
+int j{}; //	j is initialized by 0
+int* p;  // p has undefined value
+int* q{};// q is initialized by 0
+```
+
+
+
+#### 5. Alias Template
+
+```cpp
+#include<vector>
+
+template<class T>
+using Vec = std::vector<T>;
+
+int main(void)
+{
+	Vec<int> vec;
+	// is equivalent to
+	std::vector<int> vec;
+
+	return 0;
+}
+```
+
+It is not possible to partially or explicitly specialize an alias template.
+
+不能偏特化或显式特化别名模板
+
+使用 `#define` 或 `typedef` 都无法达到此效果，因为它们的语法都不接受模板参数。
+
+
+
+#### 6. template template parameter
+
+模板的模板参数
+
+```cpp
+#include<vector>
+
+template<class T,
+	template<class> // 等于 template<class T>
+	class Container >
+class XCIs
+{
+private:
+	Container<T> c;
+public:
+};
+
+template<class T>
+using Vec = std::vector<T, std::allocator<T>>;
+
+int main(void)	
+{
+	// 不能直接在定义处写模板，需要使用 alias template
+	// XCIs<int, template<class T> std::vector<T>> xcis; 
+	XCIs<int, Vec> xcis;
+
+	return 0;
+}
+```
+
+
 
